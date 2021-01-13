@@ -9,34 +9,12 @@
 
 * Definir el directorio de trabajo actual
 global path "D:\Johar\7. Work\covid"
-	global base "$path/base"
 	global data "$path/data"
-set more off, permanent
 
 use "${data}\data-covid-unir.dta", clear
 
 ********************************************************************************
 * 1. Tipo de prueba
-
-* Tipo de prueba
-gen prueba_molecular =.
-replace prueba_molecular = 1 if resultado == "POSITIVO" | resultado == "NEGATIVO"
-replace prueba_molecular = 0 if prueba_molecular ==.
-label variable prueba_molecular "Prueba molecular"
-label define prueba_molecular 1 "Si molecular" 0 "No molecular"
-label values prueba_molecular prueba_molecular
-*tab prueba_molecular
-
-*
-rename resultado1 tipo_anticuerpo
-
-gen prueba_rapida =.
-replace prueba_rapida = 1 if validos == 2 |  (validos == 1 & tipo_anticuerpo == "No Reactivo")
-replace prueba_rapida = 0 if prueba_rapida ==.
-label variable prueba_rapida "Prueba rápida"
-label define prueba_rapida 1 "Si rápida" 0 "No rápida"
-label values prueba_rapida prueba_rapida 
-*tab prueba_rapida
 
 gen tipo_prueba =.
 replace tipo_prueba = 1 if prueba_molecular==1
@@ -44,20 +22,21 @@ replace tipo_prueba = 0 if prueba_rapida==1
 label variable tipo_prueba "Tipo de prueba"
 label define tipo_prueba 1 "Prueba molecular" 0 "Prueba rápida"
 label values tipo_prueba tipo_prueba
-*tab tipo_prueba
+tab tipo_prueba
 
+********************************************************************************
 * 2. Fechas 
 
 * Fecha de inicio de sintoma
-sum fecha_inicio
+* Sum fecha_inicio
 
 * Fecha de resultado
-sum fecha_resultado
+*sum fecha_resultado
 
-* Fecha de recuperacion
+* Fecha de recuperacion de los positivos
 gen fecha_recuperado =.
-replace fecha_recuperado = fecha_resultado + 14 if resultado == "POSITIVO" | (validos==2 & tipo_anticuerpo == "IgM Reactivo")
-replace fecha_recuperado = fecha_resultado + 7 if (validos == 2 & tipo_anticuerpo== "IgG Reactivo") | (validos == 2 & tipo_anticuerpo== "IgM e IgG Reactivo")
+replace fecha_recuperado = fecha_resultado + 14 if positivo_molecular == 1 | (positivo_rapida==1 & tipo_anticuerpo == "IgM Reactivo")
+replace fecha_recuperado = fecha_resultado + 7 if (positivo_rapida == 1 & tipo_anticuerpo== "IgG Reactivo") | (positivo_rapida == 1 & tipo_anticuerpo== "IgM e IgG Reactivo")
 format fecha_recuperado %td
 
 * Fecha de estado de activo
@@ -65,10 +44,11 @@ gen fecha_activo = .
 replace fecha_activo = fecha_resultado - fecha_recuperado
 format fecha_activo %td
 
+********************************************************************************
 * 3. Variables demográfias
 
 * Edad
-sum edad /* las edades de todos*/
+*sum edad 
 
 * Grupos etários
 gen grupos_etarios = .
@@ -78,12 +58,13 @@ replace grupos_etarios = 3 if edad >= 18 & edad <= 29
 replace grupos_etarios = 4 if edad >= 30 & edad <= 59
 replace grupos_etarios = 5 if edad >= 60 
 label variable grupos_etarios "Grupos etáreos"
-label define grupos_etarios 1 "niños" 2 "adolecente" 3 "joven" 4 "adulto" 5 "adulto mayor"
+label define grupos_etarios 1 "Niños" 2 "Adolecente" 3 "Joven" 4 "Adulto" 5 "Adulto mayor"
 label values grupos_etarios grupos_etarios grupos_etarios grupos_etarios grupos_etarios
 
+********************************************************************************
 * 4. Variables de salud
 
-* Personal de salud
+* Personal de salud con o sin COVID-19
 gen personal_salud =.
 replace personal_salud = 1 if ocupacion == "TRABAJADOR DE SALUD" | ocupacion == "TRABAJADOR DE SALUD EN LABORATORIO" | personal_s == "SI" | comun_prof == "Biólogo" | comun_prof == "Enfermero (a)" | comun_prof == "Enfermero(a)" | comun_prof=="Medico" | comun_prof == "Obstetra" | comun_prof== "Otros" | comun_prof== "Tecnólogo Medico" | comun_prof=="Técnico de Enfermería" | comun_prof == "Técnico de laboratorio"
 replace personal_salud = 0 if personal_salud == .
@@ -98,28 +79,25 @@ replace sintomatico_molecular = 0 if (asintomatico == "SI" & prueba_molecular==1
 label variable sintomatico_molecular "Tiene sintoma molecular"
 label define sintomatico_molecular 0 "No" 1 "Si"
 label values sintomatico_molecular sintomatico_molecular
-tab sintomatico_molecular if resultado == "POSITIVO"
+
 
 gen sintomatico_rapida =.
 replace sintomatico_rapida = 1 if (tiene_sint == "SI" & prueba_rapida ==1)
-replace sintomatico_rapida = 0 if (tiene_sint == "NO" & prueba_rapida==1)
+replace sintomatico_rapida = 0 if (tiene_sint == "NO" & prueba_rapida ==1)
 label variable sintomatico_rapida "Tiene sintoma rapida"
 label define sintomatico_rapida 0 "No" 1 "Si"
 label values sintomatico_rapida sintomatico_rapida
-tab sintomatico_rapida if validos ==2
 
-* Asintomatico
+* Sintomatico general (PCR y PR)
 gen sintomatico =.
-replace sintomatico = 1 if (asintomatico == "" & resultado == "POSITIVO") | (tiene_sint == "SI" & validos ==2)
-replace sintomatico = 0 if sintomatico == .
+replace sintomatico = 1 if (sintomatico_molecular == 1 & positivo_molecular == 1) | (sintomatico_rapida == 1 & positivo_rapida == 1)
+replace sintomatico = 0 if (sintomatico_molecular == 1 & positivo_molecular == 0) | (sintomatico_rapida == 1 & positivo_rapida == 0)
 label variable sintomatico "Tiene sintoma"
 label define sintomatico 0 "No" 1 "Si"
 label values sintomatico sintomatico
-tab sintomatico if resultado == "POSITIVO" | validos ==2
+tab sintomatico
 
-*tab sintomatico if resultado == "POSITIVO" | validos == 2
-
-* Preliminarios
+* Preliminarios para calcular los tipos de síntomas 
 destring fiebre_esc, force replace
 destring malestar_g, force replace
 destring tos, force replace
@@ -140,7 +118,7 @@ gen otros_sintom = .
 replace otros_sintom = 1 if otros_sintomas != "" 
 
 * Sintomas
-gen sintomas= .
+gen sintomas = .
 replace sintomas = 1 if fiebre == 1 | fiebre_esc == 1
 replace sintomas = 2 if malestar == 1 | malestar_g == 1
 replace sintomas = 3 if tos == 1
@@ -157,10 +135,11 @@ replace sintomas = 13 if pecho == 1 | dolor_pre3 ==1
 replace sintomas = 14 if articulaciones == 1 | dolor_pre4 ==1
 replace sintomas = 15 if otros_sintom == 1 | dolor_pre5 ==1
 label variable sintomas "Sintomas"
-label define sintomas 1 "Fiebre" 2 "Malestar general" 3 "tos" 4 "Dolor de garganta" 5 "Congestion" 6 "Dificultad respiratoria" 7 "Diarrea" 8 "Nauseas" 9 "Cefalea" 10 "Irritabilidad" 11 "Dolor muscular" 12 "Dolor abdominal" 13 "Dolor de pecho" 14 "Dolor de articulaciones" 15 "Otros síntomas"
+label define sintomas 1 "Fiebre" 2 "Malestar general" 3 "Tos" 4 "Dolor de garganta" 5 "Congestion" 6 "Dificultad respiratoria" 7 "Diarrea" 8 "Nauseas" 9 "Cefalea" 10 "Irritabilidad" 11 "Dolor muscular" 12 "Dolor abdominal" 13 "Dolor de pecho" 14 "Dolor de articulaciones" 15 "Otros síntomas"
 label values sintomas sintomas sintomas sintomas sintomas sintomas sintomas sintomas sintomas sintomas sintomas sintomas sintomas sintomas sintomas
-tab sintomas if resultado == "POSITIVO" | validos ==2
+tab sintomas if (positivo_molecular == 1 | positivo_rapida == 1) & sintomatico == 1
 
+/*
 * Comorbilidad
 destring riesgo_per, replace force
 destring riesgo_obe, replace force
@@ -181,14 +160,8 @@ replace otros_comorb = 1 if riesgo != ""
 replace otros_comorb = 0 if riesgo == ""
 tab otros_comorb
 
-gen otros_cX = .
-replace otros_cX = 1 if otros_comorbilidad != "" 
-replace otros_cX = 0 if otros_comorbilidad == ""
-tab otros_cX if resultado == "POSITIVO"
-
 * Comorbilidad
 gen comorbilidad =.
-*replace comorbilidad = 0 if riesgo_nin == 1 | sin_com == 1 
 replace comorbilidad = 1 if embarazo == 1 | riesgo_emb == 1
 replace comorbilidad = 2 if cardiovascular == 1 | riesgo_enf == 1 | riesgo_hip == 1
 replace comorbilidad = 3 if diabetes == 1 | ariesgo_di == 1
@@ -201,7 +174,9 @@ label variable comorbilidad "Comorbilidad"
 label define comorbilidad 1 "Embarazo" 2 "Cardiovascular" 3 "Diabetes" 4 "Inmunodeficiencia" 5 "Renal" 6 "Pulmonar" 7 "Cancer" 8 "Otros"
 label values comorbilidad comorbilidad comorbilidad comorbilidad comorbilidad comorbilidad comorbilidad comorbilidad
 tab comorbilidad if resultado == "POSITIVO" | validos == 2
+*/
 
+********************************************************************************
 * 5. Variables geográficas
 
 * Provincia
@@ -222,7 +197,7 @@ replace provincia_residencia = 13 if provincia == "URUBAMBA" | provincia == "Uru
 label variable provincia_residencia "provincia de residencia"
 label define provincia_residencia 1 "ACOMAYO" 2 "ANTA" 3 "CALCA" 4 "CANAS" 5 "CANCHIS" 6 "CHUMBIVILCAS" 7 "CUSCO" 8 "ESPINAR" 9 "LA CONVENCION" 10 "PARURO" 11 "PAUCARTAMBO" 12 "QUISPICANCHI" 13 "URUBAMBA"
 label values provincia_residencia provincia_residencia provincia_residencia provincia_residencia provincia_residencia provincia_residencia provincia_residencia provincia_residencia provincia_residencia provincia_residencia provincia_residencia provincia_residencia provincia_residencia 
-tab provincia_residencia
+tab provincia_residencia if positivo_molecular == 1 | positivo_rapida == 1
 
 * Distrito de cada uno de las 13 provincias
 
@@ -237,7 +212,7 @@ replace acomayo = 7 if distrito == "SANGARARA" | distrito == "Sangarara"
 label variable acomayo "ACOMAYO"
 label define acomayo 1	"ACOMAYO" 2	"ACOPIA" 3	"ACOS" 4	"MOSOC LLACTA" 5	"POMACANCHI" 6	"RONDOCAN" 7	"SANGARARA"
 label values acomayo acomayo acomayo acomayo acomayo acomayo acomayo
-tab acomayo if resultado == "POSITIVO" | validos == 2
+tab acomayo if positivo_molecular == 1 | positivo_rapida == 1
 
 gen anta = .
 replace anta = 1 if distrito == "ANCAHUASI" | distrito == "Ancahuasi"
@@ -252,7 +227,7 @@ replace anta = 9 if distrito == "ZURITE" | distrito == "Zurite"
 label variable anta "ANTA"
 label define anta 1	"ANCAHUASI" 2 "ANTA" 3 "CACHIMAYO" 4 "CHINCHAYPUJIO" 5	"HUAROCONDO" 6	"LIMATAMBO" 7	"MOLLEPATA" 8 "PUCYURA ANTA" 9	"ZURITE"
 label values anta anta anta anta anta anta anta anta anta
-tab anta if resultado == "POSITIVO" | validos == 2
+tab anta if positivo_molecular == 1 | positivo_rapida == 1
 
 gen calca =.
 replace calca = 1 if distrito == "CALCA" | distrito == "Calca"
@@ -266,7 +241,7 @@ replace calca = 8 if distrito == "YANATILE" | distrito == "Yanatile"
 label variable calca "CALCA"
 label define calca 1 "CALCA" 2 "COYA" 3	"LAMAY" 4 "LARES" 5	"PISAC" 6 "SAN SALVADOR" 7	"TARAY" 8	"YANATILE"
 label values calca calca calca calca calca calca calca calca
-tab calca if resultado == "POSITIVO" | validos == 2
+tab calca if positivo_molecular == 1 | positivo_rapida == 1
 
 gen canas =.
 replace canas = 1 if distrito == "CHECCA" | distrito == "Checca"
@@ -280,7 +255,7 @@ replace canas = 8 if distrito == "YANAOCA" | distrito == "Yanaoca"
 label variable canas "CANAS"
 label define canas 1	"CHECCA" 2	"KUNTURKANKI" 3	"LANGUI" 4	"LAYO" 5	"PAMPAMARCA" 6	"QUEHUE" 7	"TUPAC AMARU" 8	"YANAOCA"
 label values  canas  canas  canas  canas  canas  canas  canas  canas 
-tab canas if resultado == "POSITIVO" | validos == 2
+tab canas if positivo_molecular == 1 | positivo_rapida == 1
 
 gen canchis =.
 replace canchis = 1 if distrito == "CHECACUPE" | distrito == "Checacupe"
@@ -294,7 +269,7 @@ replace canchis = 8 if distrito == "TINTA" | distrito == "Tinta"
 label variable canchis "CANCHIS"
 label define canchis 1	"CHECACUPE" 2	"COMBAPATA" 3	"MARANGANI" 4	"PITUMARCA" 5	"SAN PABLO" 6	"SAN PEDRO" 7	"SICUANI" 8	"TINTA"
 label values canchis canchis canchis canchis canchis canchis canchis canchis 
-tab canchis if resultado == "POSITIVO" | validos == 2
+tab canchis if positivo_molecular == 1 | positivo_rapida == 1
 
 gen chumbivilcas = .
 replace chumbivilcas = 1 if distrito == "CAPACMARCA" | distrito == "Capacmarca" 
@@ -308,7 +283,7 @@ replace chumbivilcas = 8 if distrito == "VELILLE" | distrito == "Velille"
 label variable chumbivilcas "CHUMBIVILCAS"
 label define chumbivilcas 1	"CAPACMARCA" 2	"CHAMACA" 3	"COLQUEMARCA" 4	"LIVITACA" 5	"LLUSCO" 6	"QUIÑOTA" 7	"SANTO TOMAS" 8	"VELILLE"
 label values  chumbivilcas chumbivilcas chumbivilcas chumbivilcas chumbivilcas chumbivilcas chumbivilcas chumbivilcas
-tab chumbivilcas if resultado == "POSITIVO" | validos == 2
+tab chumbivilcas if positivo_molecular == 1 | positivo_rapida == 1
 
 gen cusco =.
 replace cusco = 1 if distrito == "CCORCA" | distrito == "Ccorca" 
@@ -322,7 +297,7 @@ replace cusco = 8 if distrito == "WANCHAQ" | distrito == "Wanchaq"
 label variable cusco "CUSCO"
 label define cusco 1	"CCORCA" 2	"CUSCO" 3	"POROY" 4	"SAN JERONIMO" 5	"SAN SEBASTIAN" 6	"SANTIAGO" 7	"SAYLLA" 8	"WANCHAQ"
 label values cusco  cusco  cusco  cusco  cusco  cusco  cusco  cusco  
-tab cusco if resultado == "POSITIVO" | validos == 2
+tab cusco if positivo_molecular == 1 | positivo_rapida == 1
 
 gen espinar =.
 replace espinar = 1 if distrito == "ALTO PICHIGUA" | distrito == "Alto Pichigua" 
@@ -336,7 +311,7 @@ replace espinar = 8 if distrito == "SUYCKUTAMBO" | distrito == "Suyckutambo"
 label variable espinar "ESPINAR"
 label define espinar 1	"ALTO PICHIGUA" 2	"CONDOROMA" 3	"COPORAQUE" 4	"ESPINAR" 5	"OCORURO" 6	"PALLPATA" 7	"PICHIGUA" 8	"SUYCKUTAMBO"
 label values  espinar espinar espinar espinar espinar espinar espinar espinar
-tab espinar if resultado == "POSITIVO" | validos == 2
+tab espinar if positivo_molecular == 1 | positivo_rapida == 1
 
 gen laconvencion=.
 replace laconvencion = 1 if distrito == "ECHARATE" | distrito == "Echarate" 
@@ -356,7 +331,7 @@ replace laconvencion = 14 if distrito == "VILLA VIRGEN" | distrito == "Villa Vir
 label variable laconvencion "LA CONVENCION"
 label define laconvencion 1	"ECHARATE" 2	"HUAYOPATA" 3	"INKAWASI" 4	"KIMBIRI" 5	"MARANURA" 6	"MEGANTONI" 7	"OCOBAMBA" 8	"PICHARI" 9	"QUELLOUNO" 10	"SANTA ANA" 11	"SANTA TERESA" 12	"VILCABAMBA" 13	"VILLA KINTIARINA" 14	"VILLA VIRGEN"
 label values  laconvencion laconvencion laconvencion laconvencion laconvencion laconvencion laconvencion laconvencion laconvencion laconvencion laconvencion laconvencion laconvencion laconvencion
-tab laconvencion if resultado == "POSITIVO" | validos == 2
+tab laconvencion if positivo_molecular == 1 | positivo_rapida == 1
 
 gen paruro =.
 replace paruro = 1 if distrito == "ACCHA" | distrito == "Accha" 
@@ -371,7 +346,7 @@ replace paruro = 9 if distrito == "YAURISQUE" | distrito == "Yaurisque"
 label variable paruro "PARURO"
 label define paruro 1 "ACCHA" 2	"CCAPI" 3	"COLCHA" 4	"HUANOQUITE" 5	"OMACHA" 6	"PACCARITAMBO" 7 "PARURO" 8	"PILLPINTO" 9 "YAURISQUE"
 label values paruro paruro paruro paruro paruro paruro paruro paruro paruro
-tab paruro if resultado == "POSITIVO" | validos == 2
+tab paruro if positivo_molecular == 1 | positivo_rapida == 1
 
 gen paucartambo =.
 replace paucartambo = 1 if distrito == "CAICAY" | distrito == "Caicay" 
@@ -383,7 +358,7 @@ replace paucartambo = 6 if distrito == "PAUCARTAMBO" | distrito == "Paucartambo"
 label variable paucartambo "PAUCARTAMBO"
 label define paucartambo 1 "CAICAY" 2 "CHALLABAMBA" 3	"COLQUEPATA" 4	"HUANCARANI" 5	"KOSÑIPATA" 6 "PAUCARTAMBO"
 label values  paucartambo paucartambo paucartambo paucartambo paucartambo paucartambo
-tab paucartambo if resultado == "POSITIVO" | validos == 2
+tab paucartambo if positivo_molecular == 1 | positivo_rapida == 1
 
 gen quispicanchi =.
 replace quispicanchi = 1 if distrito == "ANDAHUAYLILLAS" | distrito == "Andahuaylillas" 
@@ -401,7 +376,7 @@ replace quispicanchi = 12 if distrito == "URCOS" | distrito == "Urcos"
 label variable quispicanchi "QUISPICANCHI"
 label define quispicanchi 1	"ANDAHUAYLILLAS" 2	"CAMANTI" 3	"CCARHUAYO" 4	"CCATCA" 5	"CUSIPATA" 6	"HUARO" 7	"LUCRE" 8	"MARCAPATA" 9	"OCONGATE" 10	"OROPESA" 11	"QUIQUIJANA" 12	"URCOS"
 label values  quispicanchi quispicanchi quispicanchi quispicanchi quispicanchi quispicanchi quispicanchi quispicanchi quispicanchi quispicanchi quispicanchi quispicanchi
-tab quispicanchi if resultado == "POSITIVO" | validos == 2
+tab quispicanchi if positivo_molecular == 1 | positivo_rapida == 1
 
 gen urubamba =.
 replace urubamba = 1 if distrito == "CHINCHERO" | distrito == "Chinchero" 
@@ -414,8 +389,22 @@ replace urubamba = 7 if distrito == "YUCAY" | distrito == "Yucay"
 label variable urubamba "URUBAMBA" 
 label define urubamba 1	"CHINCHERO" 2	"HUAYLLABAMBA" 3	"MACHUPICCHU" 4	"MARAS" 5 "OLLANTAYTAMBO" 6	"URUBAMBA" 7	"YUCAY"
 label values  urubamba urubamba urubamba urubamba urubamba urubamba urubamba
-tab urubamba if resultado == "POSITIVO" | validos == 2
+tab urubamba if positivo_molecular == 1 | positivo_rapida == 1
 
-keep var_id fecha_inicio fecha_resultado edad sexo grupos_etarios personal_salud sintomatico  provincia_residencia acomayo anta calca canas canchis chumbivilcas cusco espinar laconvencion paruro paucartambo quispicanchi urubamba distrito latitud longitud direccion resultado validos dni prueba_molecular prueba_rapida tipo_prueba fecha_recuperado fecha_activo sintomas ubigeo comorbilidad sintomatico_molecular sintomatico_rapida departamento defuncion dni_molecular dni_rapida var_id_molecular var_id_rapida fecha_molecular fecha_rapida positivo_molecular positivo_rapida tipo_anticuerpo defuncion
+* Mantener las principales variables 
+keep tipo_prueba fecha_inicio sintomatico_molecular sintomatico_rapida sintomatico sintomas prueba_molecular prueba_rapida positivo_molecular positivo_rapida tipo_anticuerpo ///
+var_id  var_id_molecular var_id_rapida dni dni_molecular dni_rapida  ///
+fecha_resultado fecha_molecular fecha_rapida fecha_recuperado fecha_activo ///
+ edad sexo grupos_etarios personal_salud ///
+ ubigeo departamento provincia_residencia provincia_reside distrito latitud longitud direccion ///
+ acomayo anta calca canas canchis chumbivilcas cusco espinar laconvencion paruro paucartambo quispicanchi urubamba ///
+ defuncion  
 
 save "${data}/data-covid-unir-variables.dta", replace
+
+keep if prueba_molecular == 1 | prueba_rapida == 1 | defuncion == 1
+
+keep fecha_resultado edad sexo  sintomatico ubigeo latitud longitud sintomas positivo_rapida positivo_molecular tipo_anticuerpo defuncion grupos_etarios tipo_prueba fecha_recuperado
+
+save "${data}/data-covid-unir-variables-brandon.dta", replace
+

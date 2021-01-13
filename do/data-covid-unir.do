@@ -9,11 +9,11 @@
 
 /*
 - Guardar la base de datos en excel con nombre de "BASE COVID" en la hoja "BD_coronavirus"
- para datos de Notificación y "BASE SISCOVID" en la hoja "Hoja2" para datos de la base de SISCOVID
+para datos de Notificación y "BASE SISCOVID" en la hoja "Hoja2" para datos de la base de SISCOVID
 
 - Los datos de SISCOVID son para pruebas rapidas y Notificación para pruebas moleculares
 
-- Guardar ambas bases en un solo directorio (el mío es "D:\Johar\7. Work")
+- Guardar ambas bases en un solo directorio (el mío es "D:\Johar\7. Work\covid")
 
 - Para trabajar normalmente (sin que haya problemas con que tenemos datos tan grandes que versiones de Stata no cargan). Yo recomiendo usar Stata 16 MP
 */
@@ -23,13 +23,14 @@ global path "D:\Johar\7. Work\covid"
 	global base "$path/base"
 	global data "$path/data"
 
-set more off, permanent
-
 ********************************************************************************
 * 1. Base de datos NOTICOVID
 
 * Importar la base de datos de excel
-import excel "${base}/BASE NOTICOVID.xlsx", sheet(BD_coronavirus) firstrow clear
+import excel "${base}/BASE NOTICOVID.xlsx", sheet(BASE) firstrow clear
+
+* Añadir un cero al ubigeo 
+replace ubigeo = "0" + ubigeo 
 
 * Generar una variable genérica/única de identificación
 egen var_id = group(dni)   /* necesaria para hacer el match con la BASE SISCOVID*/
@@ -43,6 +44,30 @@ rename provincia_residencia provincia
 rename residencia distrito
 
 * Convertir la 'fecha de resultado' en el formato que lea la variable
+
+* Primera prueba molecular
+rename fecha_res fecha_molecular_1
+
+split fecha_molecular_1, parse(-) destring
+rename (fecha_molecular_1?) (dayl monthl yearl)
+gen fecha_resultado = daily(fecha_molecular_1, "DMY")
+format fecha_resultado %td
+
+* Fecha oficial
+gen fecha_molecular = fecha_resultado
+format fecha_molecular %td
+
+* Fecha para identificar 
+gen fecha_1_molecular = fecha_resultado
+format fecha_1_molecular %td 
+
+* Resultado de la prueba (prueba oficial o primera prueba)
+gen resultado_1_molecular = resultado
+
+gen positivo_1_molecular = .
+replace positivo_1_molecular = 1 if resultado == "POSITIVO"
+replace positivo_1_molecular = 0 if resultado == "NEGATIVO"
+
 * Segunda prueba molecular
 rename fecha_res1 fecha_molecular_2
 split fecha_molecular_2, parse(-) destring
@@ -50,13 +75,41 @@ rename (fecha_molecular_2?) (day2 month2 year2)
 gen fecha_2_molecular = daily(fecha_molecular_2, "DMY")
 format fecha_2_molecular %td
 
-* Primera prueba molecular
-split fecha_res, parse(-) destring
-rename (fecha_res?) (dayl monthl yearl)
-gen fecha_resultado = daily(fecha_res, "DMY")
-format fecha_resultado %td
-gen fecha_molecular = fecha_resultado
-format fecha_molecular %td
+gen resultado_2_molecular = resultado1
+
+gen positivo_2_molecular = .
+replace positivo_2_molecular = 1 if resultado1 == "POSITIVO"
+replace positivo_2_molecular = 0 if resultado1 == "NEGATIVO"
+
+
+* Fecha de primera prueba rapida
+rename fecha_res_rap fecha_rapida_1
+split fecha_rapida_1, parse(-) destring 
+rename (fecha_rapida_1?) (day3 month3 year3)
+gen fecha_1_rapida_noti = daily(fecha_rapida_1, "DMY")
+format fecha_1_rapida_noti %td
+
+gen resultado_1_rapida_noti = resultado_rap 
+
+gen positivo_1_rapida_noti = .
+replace positivo_1_rapida_noti = 1 if resultado_rap == "Ig G POSITIVO" | resultado_rap == "Ig M  e Ig G POSITIVO" | resultado_rap == "Ig M POSITIVO"
+replace positivo_1_rapida_noti = 0 if resultado_rap == "NEGATIVO"
+
+
+* Fecha de segunda prueba rapida
+rename fecha_res_rap1 fecha_rapida_2
+split fecha_rapida_2, parse(-) destring 
+rename (fecha_rapida_2?) (day4 month4 year4)
+gen fecha_2_rapida_noti = daily(fecha_rapida_2, "DMY")
+format fecha_2_rapida_noti %td
+
+gen resultado_2_rapida_noti = resultado_rap1
+
+gen positivo_2_rapida_noti = .
+replace positivo_2_rapida_noti = 1 if resultado_rap1 == "Ig G POSITIVO" | resultado_rap1 == "Ig M  e Ig G POSITIVO" | resultado_rap1 == "Ig M POSITIVO"
+replace positivo_2_rapida_noti = 0 if resultado_rap1 == "NEGATIVO"
+
+************
 
 * Fecha de inicio de síntoma
 split fecha_ini, parse(-) destring 
@@ -66,12 +119,21 @@ format fecha_inicio %td
 
 * Indicador de positivos con prueba moleculares
 gen positivo_molecular=.
-replace positivo_molecular = 1 if resultado == "POSITIVO"
-replace positivo_molecular = 0 if resultado == "NEGATIVO"
+replace positivo_molecular = 1 if resultado == "POSITIVO" & (muestra == "ASPIRADO TRAQUEAL O NASAL FARINGEO" | muestra == "HISOPADO NASAL Y FARINGEO")
+replace positivo_molecular = 0 if resultado == "NEGATIVO" & (muestra == "ASPIRADO TRAQUEAL O NASAL FARINGEO" | muestra == "HISOPADO NASAL Y FARINGEO")
 tab positivo_molecular
 
+gen prueba_molecular =.
+replace prueba_molecular = 1 if positivo_molecular == 1 | positivo_molecular == 0
+replace prueba_molecular = 0 if prueba_molecular ==.
+label variable prueba_molecular "Prueba molecular"
+label define prueba_molecular 1 "Si molecular" 0 "No molecular"
+label values prueba_molecular prueba_molecular
+tab prueba_molecular 
+
+
 * Mantenemos sólo con pruebas moleculares (no tomando en cuenta las rápidas)
-keep if positivo_molecular == 1 | positivo_molecular == 0
+*keep if positivo_molecular == 1 | positivo_molecular == 0
 
 save "${data}/data_noticovid.dta", replace
 
@@ -93,11 +155,23 @@ gen departamento = departamen
 * Convertir la 'fecha de resultado' en el formato que lea la variable
 rename fecha_prue fecha_resultado 
 format fecha_resultado %d
+
+* Identificador de fecha rápida para comparar
 gen fecha_rapida = fecha_resultado
 format fecha_rapida %td
 
-* Fecha de inicio de síntoma 
-split fecha_inic, parse(-) destring 
+* Fecha para identificar los duplicados 
+gen fecha_siscovid = fecha_resultado
+format fecha_siscovid %td
+
+* Positivo para identificar los duplicados 
+gen positivo_rapida_siscovid = .
+replace positivo_rapida_siscovid = 1 if resultado == "IgG POSITIVO" | resultado == "IgG Reactivo" | resultado == "IgM POSITIVO" | resultado == "IgM Reactivo" | resultado == "IgM e IgG POSITIVO" | resultado == "IgM e IgG Reactivo" | resultado == "POSITIVO" | (resultado == "Indeterminado" & (resultado1 == "IgG Reactivo"| resultado1 == "IgM Reactivo" | resultado1 == "IgM e IgG Reactivo"))
+replace positivo_rapida_siscovid = 0 if resultado == "NEGATIVO" | resultado == "No Reactivo" | (resultado1 == "Indeterminado" & (resultado1 == "Indeterminado" | resultado1 == "No reactivo"))
+
+
+* Fecha de inicio de síntoma
+split fecha_inic, parse(-) destring
 rename (fecha_inic?) (year month day)
 gen fecha_inicio = daily(fecha_ini, "YMD")
 format fecha_inicio %td
@@ -110,17 +184,26 @@ tab positivo_rapida
 
 * Otras variables relevantes para que sean similares a la base NOTICOVID
 rename id_ubigeo ubigeo
-destring ubigeo, force replace
 destring edad, replace
 rename comun_sexo sexo
+
+* IgM IgG y mixto
+rename resultado1 tipo_anticuerpo
+
+gen prueba_rapida =.
+replace prueba_rapida = 1 if  (validos == 2 | validos == 1) & tipo_anticuerpo != ""
+replace prueba_rapida = 0 if prueba_rapida ==.
+label variable prueba_rapida "Prueba rápida"
+label define prueba_rapida 1 "Si rápida" 0 "No rápida"
+label values prueba_rapida prueba_rapida 
+tab prueba_rapida
 
 save "${data}/data_siscovid.dta", replace
 
 ********************************************************************************
 * 3. Base de datos SINADEF (defunciones por COVID-19)
 * OJO: Previamente tienes que cambiar el formato de fecha, un trabajo a mano
-
-import excel "${base}\defunciones.xlsx", sheet("DATA") firstrow clear
+import excel "${base}\BASE SINADEF.xlsx", sheet("DATA") firstrow clear
 
 * Generar la variable de identificación
 rename DOCUMENTO dni
@@ -128,8 +211,29 @@ egen var_id = group(dni)
 
 * Seleccionar solo a los que pertencen al departamento Cusco
 rename DEPARTAMENTO departamento
+
+* Donde han fallecido
 rename PROVINCIA provincia
 rename DISTRITO distrito
+
+* Para identificar los migrantes
+rename PROVINCIADOMICILIO provincia_vivienda
+gen provincia_reside = .
+replace provincia_reside = 1 if provincia_vivienda == "ACOMAYO"
+replace provincia_reside = 2 if provincia_vivienda == "ANTA"
+replace provincia_reside = 3 if provincia_vivienda == "CALCA"
+replace provincia_reside = 4 if provincia_vivienda == "CANAS"
+replace provincia_reside = 5 if provincia_vivienda == "CANCHIS"
+replace provincia_reside = 6 if provincia_vivienda == "CHUMBIVILCAS"
+replace provincia_reside = 7 if provincia_vivienda == "CUSCO"
+replace provincia_reside = 8 if provincia_vivienda == "ESPINAR"
+replace provincia_reside = 9 if provincia_vivienda == "LA CONVENCION"
+replace provincia_reside = 10 if provincia_vivienda == "PARURO"
+replace provincia_reside = 11 if provincia_vivienda == "PAUCARTAMBO"
+replace provincia_reside = 12 if provincia_vivienda == "QUISPICANCHI"
+replace provincia_reside = 13 if provincia_vivienda == "URUBAMBA"
+replace provincia_reside = 14 if provincia_reside == . 
+tab provincia_reside
 
 * Convertir la 'fecha de resultado' en el formato que lea la variable
 gen fecha_resultado = mdy(MES,DIA,AÑO)
@@ -143,13 +247,14 @@ replace defuncion = 0 if defuncion == .
 * Otras variables relevantes para que sean similares a la base NOTICOVID y SISCOVID
 rename SEXO sexo
 rename EDAD edad
+destring edad, replace
 
-save "${data}/data_defunciones.dta", replace
+save "${data}/data_sinadef.dta", replace
 
 ********************************************************************************
-* 4. Juntar ambas bases de datos Notificación y SISCOVID 
+* 4. Juntar ambas bases de datos Notificación, SISCOVID y SINADEF 
 use "${data}\data_siscovid.dta", clear
 append using "${data}\data_noticovid.dta", force
-append using "${data}\data_defunciones.dta", force
+append using "${data}\data_sinadef.dta", force
 
 save "${data}\data-covid-unir.dta", replace

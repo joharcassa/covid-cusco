@@ -12,13 +12,22 @@ global path "D:\Johar\7. Work\covid"
 	global base "$path/base"
 	global data "$path/data"
 	global regional "$path/regional"
-set more off, permanent
 
 ********************************************************************************
 * 1. Casos positivos totales por dia
 use "${data}\data-covid-unir-variables.dta", clear
 
 keep if positivo_molecular == 1 | positivo_rapida == 1
+
+*keep positivo_molecular positivo_rapida fecha_resultado ubigeo defuncion distrito
+
+*keep if positivo_molecular == 1 | tipo_anticuerpo == "IgM Reactivo"
+
+*keep if tipo_anticuerpo == "IgG Reactivo" | tipo_anticuerpo == "IgM e IgG Reactivo"
+
+*keep if edad >= 16 & edad <= 30
+
+*keep if edad <16 | edad >30
 
 collapse (count) var_id, by(fecha_resultado)
 
@@ -66,19 +75,23 @@ use "${data}\data-covid-unir-variables.dta", clear
 
 keep if  prueba_molecular == 1 | prueba_rapida == 1
 
-collapse (count) var_id, by(fecha_resultado)
+set seed 98034
+
+generate u1 = runiform()
+
+collapse (count) u1, by(fecha_resultado)
 
 tsset fecha_resultado, daily
 tsfill
-generate total_muestra=sum( var_id )
+generate total_muestra=sum( u1 )
 
-rename var_id muestra
+rename u1 muestra
 
 save "${regional}/data/data-covid-unir-variables-muestra.dta", replace
 
 * 2.1 Muestras molecular por día
 use "${data}\data-covid-unir-variables.dta", clear
-keep if  prueba_molecular == 1
+keep if prueba_molecular == 1
 
 collapse (count) var_id, by(fecha_resultado)
 
@@ -89,19 +102,23 @@ generate total_muestra_molecular=sum( var_id )
 rename var_id muestra_molecular
 
 save "${regional}/data/data-covid-unir-variables-muestra-molecular.dta", replace
-
-* 2.1 Muestras rápida por día
+ 
+*   2.1 Muestras rápida por día
 use "${data}\data-covid-unir-variables.dta", clear
 
 keep if prueba_rapida == 1
 
-collapse (count) var_id, by(fecha_resultado)
+set seed 98034
+
+generate u1 = runiform()
+
+collapse (count) u1, by(fecha_resultado)
 
 tsset fecha_resultado, daily
 tsfill
-generate total_muestra_rapida=sum( var_id )
+generate total_muestra_rapida=sum( u1 )
 
-rename var_id muestra_rapida
+rename u1 muestra_rapida
 
 save "${regional}/data/data-covid-unir-variables-muestra-rapida.dta", replace
 
@@ -158,7 +175,8 @@ save "${regional}/data/data-defunciones.dta", replace
 * 6. Inicio de síntoma
 use "${data}\data-covid-unir-variables.dta", clear
 
-keep if  positivo_molecular ==1 | positivo_rapida ==1
+keep if positivo_molecular == 1 | positivo_rapida ==1
+keep if sintomatico == 1
 keep if fecha_inicio >= 21980
 drop if fecha_inicio == .
 
@@ -210,7 +228,7 @@ rename var_id inicio_rapida
 
 save "${regional}/data/data-inicio-rapida", replace
 ********************************************************************************
-* 9. Positivos con prueba rapida e IgM
+* 7. Positivos con prueba rapida e IgM
 use "${data}\data-covid-unir-variables.dta", clear
 
 keep if (positivo_rapida ==1 & tipo_anticuerpo == "IgM Reactivo")
@@ -227,7 +245,7 @@ save "${regional}/data/data-covid-unir-variables-igm.dta", replace
 
 
 ********************************************************************************
-* 10. Positivos con prueba rapida e IgG
+* 8. Positivos con prueba rapida e IgG
 use "${data}\data-covid-unir-variables.dta", clear
 
 keep if (positivo_rapida ==1 & tipo_anticuerpo == "IgG Reactivo")
@@ -244,7 +262,7 @@ save "${regional}/data/data-covid-unir-variables-igg.dta", replace
 
 
 ********************************************************************************
-* 11. Positivos con prueba rapida e IgM e IgG Reactivo
+* 9. Positivos con prueba rapida e IgM e IgG Reactivo
 use "${data}\data-covid-unir-variables.dta", clear
 
 keep if (positivo_rapida ==1 & tipo_anticuerpo == "IgM e IgG Reactivo")
@@ -260,8 +278,9 @@ rename var_id igm_igg
 save "${regional}/data/data-covid-unir-variables-igm-igg.dta", replace
 
 ********************************************************************************
-* 7. Juntando las bases de datos
+* 10. Juntando las bases de datos
 use "${regional}\data\data-covid-unir-variables-positivo", clear
+
 merge 1:1 fecha_resultado using "${regional}\data\data-covid-unir-variables-positivo-molecular"
 drop _merge
 merge 1:1 fecha_resultado using "${regional}\data\data-covid-unir-variables-positivo-rapida"
@@ -292,7 +311,10 @@ merge 1:1 fecha_resultado using "${regional}\data\data-covid-unir-variables-igm-
 drop _merge
 
 ********************************************************************************
-* 8. Total de activos por día
+* 11. Total de activos por día
 gen total_activos = total_positivo - total_recuperado
+
+gen asintomaticos = positivos - sintomaticos
+generate total_asintomaticos=sum(asintomaticos)
 
 save "${regional}/data/data-covid-unir-variables-diario.dta", replace
