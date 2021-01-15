@@ -119,10 +119,10 @@ format fecha_inicio %td
 
 * Indicador de positivos con prueba moleculares
 gen positivo_molecular=.
-replace positivo_molecular = 1 if resultado == "POSITIVO" & (muestra == "ASPIRADO TRAQUEAL O NASAL FARINGEO" | muestra == "HISOPADO NASAL Y FARINGEO")
-replace positivo_molecular = 0 if resultado == "NEGATIVO" & (muestra == "ASPIRADO TRAQUEAL O NASAL FARINGEO" | muestra == "HISOPADO NASAL Y FARINGEO")
+replace positivo_molecular = 1 if resultado == "POSITIVO" & (muestra == "ASPIRADO TRAQUEAL O NASAL FARINGEO" | muestra == "HISOPADO NASAL Y FARINGEO") & (prueba != "PRUEBA ANTIGÉNICA" | prueba != "PRUEBA SEROLÓGICA")
+replace positivo_molecular = 0 if resultado == "NEGATIVO" & (muestra == "ASPIRADO TRAQUEAL O NASAL FARINGEO" | muestra == "HISOPADO NASAL Y FARINGEO") & (prueba != "PRUEBA ANTIGÉNICA" | prueba != "PRUEBA SEROLÓGICA")
 tab positivo_molecular
-
+X 
 gen prueba_molecular =.
 replace prueba_molecular = 1 if positivo_molecular == 1 | positivo_molecular == 0
 replace prueba_molecular = 0 if prueba_molecular ==.
