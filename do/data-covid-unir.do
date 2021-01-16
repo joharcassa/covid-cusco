@@ -119,10 +119,10 @@ format fecha_inicio %td
 
 * Indicador de positivos con prueba moleculares
 gen positivo_molecular=.
-replace positivo_molecular = 1 if resultado == "POSITIVO" & (muestra == "ASPIRADO TRAQUEAL O NASAL FARINGEO" | muestra == "HISOPADO NASAL Y FARINGEO") & (prueba != "PRUEBA ANTIGÉNICA" | prueba != "PRUEBA SEROLÓGICA")
-replace positivo_molecular = 0 if resultado == "NEGATIVO" & (muestra == "ASPIRADO TRAQUEAL O NASAL FARINGEO" | muestra == "HISOPADO NASAL Y FARINGEO") & (prueba != "PRUEBA ANTIGÉNICA" | prueba != "PRUEBA SEROLÓGICA")
+replace positivo_molecular = 1 if resultado == "POSITIVO" & (muestra == "ASPIRADO TRAQUEAL O NASAL FARINGEO" | muestra == "HISOPADO NASAL Y FARINGEO") & (prueba != "PRUEBA ANTIGÉNICA" & prueba != "PRUEBA SEROLÓGICA")
+replace positivo_molecular = 0 if resultado == "NEGATIVO" & (muestra == "ASPIRADO TRAQUEAL O NASAL FARINGEO" | muestra == "HISOPADO NASAL Y FARINGEO") & (prueba != "PRUEBA ANTIGÉNICA" & prueba != "PRUEBA SEROLÓGICA")
 tab positivo_molecular
-X 
+
 gen prueba_molecular =.
 replace prueba_molecular = 1 if positivo_molecular == 1 | positivo_molecular == 0
 replace prueba_molecular = 0 if prueba_molecular ==.
@@ -203,7 +203,13 @@ save "${data}/data_siscovid.dta", replace
 ********************************************************************************
 * 3. Base de datos SINADEF (defunciones por COVID-19)
 * OJO: Previamente tienes que cambiar el formato de fecha, un trabajo a mano
-import excel "${base}\BASE SINADEF.xlsx", sheet("DATA") firstrow clear
+import excel "${base}\BASE SINADEF.xlsx", sheet("DATA") firstrow clear 
+
+save "${data}/data_sinadef.dta", replace
+
+import excel "${base}\BASE SINADEF 2020.xlsx", sheet("DATA") firstrow clear 
+
+append using "${data}\data_sinadef.dta"
 
 * Generar la variable de identificación
 rename DOCUMENTO dni
