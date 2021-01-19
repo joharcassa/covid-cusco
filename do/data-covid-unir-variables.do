@@ -14,15 +14,6 @@ global path "C:\johar\covid-cusco"
 use "${data}\data-covid-unir.dta", clear
 
 ********************************************************************************
-* 1. Tipo de prueba
-
-gen tipo_prueba =.
-replace tipo_prueba = 1 if prueba_molecular==1
-replace tipo_prueba = 0 if prueba_rapida==1
-label variable tipo_prueba "Tipo de prueba"
-label define tipo_prueba 1 "Prueba molecular" 0 "Prueba rápida"
-label values tipo_prueba tipo_prueba
-tab tipo_prueba
 
 ********************************************************************************
 * 2. Fechas 
@@ -391,10 +382,10 @@ label define urubamba 1	"CHINCHERO" 2	"HUAYLLABAMBA" 3	"MACHUPICCHU" 4	"MARAS" 5
 label values  urubamba urubamba urubamba urubamba urubamba urubamba urubamba
 tab urubamba if positivo_molecular == 1 | positivo_rapida == 1
 
-keep if prueba_molecular == 1 | prueba_rapida == 1 | defuncion == 1
+keep if prueba_molecular == 1 | prueba_rapida == 1 | prueba_antigenica == 1 | defuncion == 1 
 
 * Mantener las principales variables 
-keep tipo_prueba fecha_inicio sintomatico_molecular sintomatico_rapida sintomatico sintomas prueba_molecular prueba_rapida positivo_molecular positivo_rapida tipo_anticuerpo ///
+keep tipo_prueba fecha_inicio sintomatico_molecular sintomatico_rapida sintomatico sintomas prueba_molecular prueba_rapida prueba_antigenica positivo_antigenica positivo_molecular positivo_rapida tipo_anticuerpo ///
 var_id  var_id_molecular var_id_rapida dni dni_molecular dni_rapida  ///
 fecha_resultado fecha_molecular fecha_rapida fecha_recuperado fecha_activo ///
  edad sexo grupos_etarios personal_salud ///

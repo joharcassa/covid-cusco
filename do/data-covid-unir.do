@@ -131,6 +131,19 @@ label define prueba_molecular 1 "Si molecular" 0 "No molecular"
 label values prueba_molecular prueba_molecular
 tab prueba_molecular 
 
+* Indicador de positivos con prueba antigenicas
+gen positivo_antigenicas=.
+replace positivo_antigenicas = 1 if resultado == "POSITIVO" & (muestra == "ASPIRADO TRAQUEAL O NASAL FARINGEO" | muestra == "HISOPADO NASAL Y FARINGEO" | muestra == "LAVADO BRONCOALVEOLAR") & (prueba == "PRUEBA ANTIGÉNICA")
+replace positivo_antigenicas = 0 if resultado == "NEGATIVO" & (muestra == "ASPIRADO TRAQUEAL O NASAL FARINGEO" | muestra == "HISOPADO NASAL Y FARINGEO"  | muestra == "LAVADO BRONCOALVEOLAR") & (prueba == "PRUEBA ANTIGÉNICA")
+tab positivo_antigenicas
+
+gen prueba_antigenicas=.
+replace prueba_antigenicas = 1 if positivo_antigenicas == 1 | positivo_antigenicas == 0
+replace prueba_antigenicas = 0 if prueba_antigenicas == .
+label variable prueba_antigenicas "Prueba antigenicas"
+label define prueba_antigenicas 1 "Si antigenicas" 0 "No antigenicas"
+label values prueba_antigenicas prueba_antigenicas
+tab prueba_antigenicas 
 
 * Mantenemos sólo con pruebas moleculares (no tomando en cuenta las rápidas)
 *keep if positivo_molecular == 1 | positivo_molecular == 0
@@ -265,5 +278,18 @@ save "${data}/data_sinadef.dta", replace
 use "${data}\data_siscovid.dta", clear
 append using "${data}\data_noticovid.dta", force
 append using "${data}\data_sinadef.dta", force
+
+* 5. Tipo de prueba
+
+gen tipo_prueba =.
+replace tipo_prueba = 1 if prueba_molecular==1
+replace tipo_prueba = 2 if prueba_rapida==1
+replace tipo_prueba = 3 if prueba_antigenica==1
+label variable tipo_prueba "Tipo de prueba"
+label define tipo_prueba 1 "Prueba molecular" 2 "Prueba rápida" 3 "Prueba antigenica"
+label values tipo_prueba tipo_prueba tipo_prueba
+tab tipo_prueba
+
+keep if tipo_prueba == 1 | tipo_prueba == 2 | tipo_prueba == 3
 
 save "${data}\data-covid-unir.dta", replace
