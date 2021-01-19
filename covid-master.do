@@ -8,7 +8,7 @@
 * 0. Pasos previos para juntar las bases de datos: Notificación y SISCOVID
 
 * Definir el directorio de trabajo actual
-global path "D:\Johar\7. Work\covid"
+global path "C:\johar\covid-cusco"
 	global base "$path/base"
 	global data "$path/data"
 	global do "$path/do"

@@ -8,7 +8,7 @@
 * 0. Preliminarios
 
 * Definir el directorio de trabajo actual
-global path "D:\Johar\7. Work\covid"
+global path "C:\johar\covid-cusco"
 	global data "$path/data"
 
 use "${data}\data-covid-unir.dta", clear
@@ -391,20 +391,20 @@ label define urubamba 1	"CHINCHERO" 2	"HUAYLLABAMBA" 3	"MACHUPICCHU" 4	"MARAS" 5
 label values  urubamba urubamba urubamba urubamba urubamba urubamba urubamba
 tab urubamba if positivo_molecular == 1 | positivo_rapida == 1
 
+keep if prueba_molecular == 1 | prueba_rapida == 1 | defuncion == 1
+
 * Mantener las principales variables 
 keep tipo_prueba fecha_inicio sintomatico_molecular sintomatico_rapida sintomatico sintomas prueba_molecular prueba_rapida positivo_molecular positivo_rapida tipo_anticuerpo ///
 var_id  var_id_molecular var_id_rapida dni dni_molecular dni_rapida  ///
 fecha_resultado fecha_molecular fecha_rapida fecha_recuperado fecha_activo ///
  edad sexo grupos_etarios personal_salud ///
- ubigeo departamento provincia_residencia provincia_reside distrito latitud longitud direccion ///
+ ubigeo departamento provincia_residencia provincia_origen distrito latitud longitud direccion ///
  acomayo anta calca canas canchis chumbivilcas cusco espinar laconvencion paruro paucartambo quispicanchi urubamba ///
  defuncion  
 
 save "${data}/data-covid-unir-variables.dta", replace
 
-keep if prueba_molecular == 1 | prueba_rapida == 1 | defuncion == 1
-
-keep fecha_resultado edad sexo  sintomatico ubigeo latitud longitud sintomas positivo_rapida positivo_molecular tipo_anticuerpo defuncion grupos_etarios tipo_prueba fecha_recuperado
+keep edad sexo  sintomatico ubigeo latitud longitud sintomas positivo_rapida positivo_molecular tipo_anticuerpo defuncion grupos_etarios tipo_prueba fecha_resultado fecha_recuperado fecha_inicio fecha_activo distrito 
 
 save "${data}/data-covid-unir-variables-brandon.dta", replace
 
