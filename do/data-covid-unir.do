@@ -290,6 +290,6 @@ label define tipo_prueba 1 "Prueba molecular" 2 "Prueba rápida" 3 "Prueba antig
 label values tipo_prueba tipo_prueba tipo_prueba
 tab tipo_prueba
 
-keep if tipo_prueba == 1 | tipo_prueba == 2 | tipo_prueba == 3
+keep if tipo_prueba == 1 | tipo_prueba == 2 | tipo_prueba == 3 | defuncion == 1 
 
 save "${data}\data-covid-unir.dta", replace
