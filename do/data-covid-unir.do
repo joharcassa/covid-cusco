@@ -205,6 +205,10 @@ save "${data}/data_siscovid.dta", replace
 * OJO: Previamente tienes que cambiar el formato de fecha, un trabajo a mano
 import excel "${base}\BASE SINADEF.xlsx", sheet("DATA") firstrow clear
 
+save "${data}/data_sinadef.dta", replace
+
+merge using "${data}/defuncion-2020.dta"
+
 * Generar la variable de identificación
 rename DOCUMENTO dni
 egen var_id = group(dni)
