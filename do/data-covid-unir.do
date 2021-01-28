@@ -19,7 +19,7 @@ para datos de Notificación y "BASE SISCOVID" en la hoja "Hoja2" para datos de l
 */
 
 * Definir el directorio de trabajo actual
-global path "C:\johar\covid-cusco"
+global path "D:\Johar\7. Work\covid"
 	global base "$path/base"
 	global data "$path/data"
 
@@ -131,19 +131,6 @@ label define prueba_molecular 1 "Si molecular" 0 "No molecular"
 label values prueba_molecular prueba_molecular
 tab prueba_molecular 
 
-* Indicador de positivos con prueba antigenicas
-gen positivo_antigenicas=.
-replace positivo_antigenicas = 1 if resultado == "POSITIVO" & (muestra == "ASPIRADO TRAQUEAL O NASAL FARINGEO" | muestra == "HISOPADO NASAL Y FARINGEO" | muestra == "LAVADO BRONCOALVEOLAR") & (prueba == "PRUEBA ANTIGÉNICA")
-replace positivo_antigenicas = 0 if resultado == "NEGATIVO" & (muestra == "ASPIRADO TRAQUEAL O NASAL FARINGEO" | muestra == "HISOPADO NASAL Y FARINGEO"  | muestra == "LAVADO BRONCOALVEOLAR") & (prueba == "PRUEBA ANTIGÉNICA")
-tab positivo_antigenicas
-
-gen prueba_antigenicas=.
-replace prueba_antigenicas = 1 if positivo_antigenicas == 1 | positivo_antigenicas == 0
-replace prueba_antigenicas = 0 if prueba_antigenicas == .
-label variable prueba_antigenicas "Prueba antigenicas"
-label define prueba_antigenicas 1 "Si antigenicas" 0 "No antigenicas"
-label values prueba_antigenicas prueba_antigenicas
-tab prueba_antigenicas 
 
 * Mantenemos sólo con pruebas moleculares (no tomando en cuenta las rápidas)
 *keep if positivo_molecular == 1 | positivo_molecular == 0
@@ -216,13 +203,13 @@ save "${data}/data_siscovid.dta", replace
 ********************************************************************************
 * 3. Base de datos SINADEF (defunciones por COVID-19)
 * OJO: Previamente tienes que cambiar el formato de fecha, un trabajo a mano
-import excel "${base}\BASE SINADEF 2020.xlsx", sheet("DATA") firstrow clear
+import excel "${base}\BASE SINADEF.xlsx", sheet("DATA") firstrow clear 
 
 save "${data}/data_sinadef.dta", replace
 
-import excel "${base}\BASE SINADEF.xlsx", sheet("DATA") firstrow clear
+import excel "${base}\BASE SINADEF 2020.xlsx", sheet("DATA") firstrow clear 
 
-append using "${data}/data_sinadef.dta", force
+append using "${data}\data_sinadef.dta"
 
 * Generar la variable de identificación
 rename DOCUMENTO dni
@@ -237,25 +224,22 @@ rename DISTRITO distrito
 
 * Para identificar los migrantes
 rename PROVINCIADOMICILIO provincia_vivienda
-gen provincia_origen = .
-replace provincia_origen = 1 if provincia_vivienda == "ACOMAYO"
-replace provincia_origen = 2 if provincia_vivienda == "ANTA"
-replace provincia_origen = 3 if provincia_vivienda == "CALCA"
-replace provincia_origen = 4 if provincia_vivienda == "CANAS"
-replace provincia_origen = 5 if provincia_vivienda == "CANCHIS"
-replace provincia_origen = 6 if provincia_vivienda == "CHUMBIVILCAS"
-replace provincia_origen = 7 if provincia_vivienda == "CUSCO"
-replace provincia_origen = 8 if provincia_vivienda == "ESPINAR"
-replace provincia_origen = 9 if provincia_vivienda == "LA CONVENCION"
-replace provincia_origen = 10 if provincia_vivienda == "PARURO"
-replace provincia_origen = 11 if provincia_vivienda == "PAUCARTAMBO"
-replace provincia_origen = 12 if provincia_vivienda == "QUISPICANCHI"
-replace provincia_origen = 13 if provincia_vivienda == "URUBAMBA"
-replace provincia_origen = 14 if  provincia_origen == . 
-label variable provincia_origen "provincia de origen"
-label define provincia_reside 1 "ACOMAYO" 2 "ANTA" 3 "CALCA" 4 "CANAS" 5 "CANCHIS" 6 "CHUMBIVILCAS" 7 "CUSCO" 8 "ESPINAR" 9 "LA CONVENCION" 10 "PARURO" 11 "PAUCARTAMBO" 12 "QUISPICANCHI" 13 "URUBAMBA" 14 "MIGRATES"
-label values provincia_origen provincia_origen provincia_origen provincia_origen provincia_origen provincia_origen provincia_origen provincia_origen provincia_origen provincia_origen provincia_origen provincia_origen provincia_origen provincia_origen 
-tab  provincia_origen
+gen provincia_reside = .
+replace provincia_reside = 1 if provincia_vivienda == "ACOMAYO"
+replace provincia_reside = 2 if provincia_vivienda == "ANTA"
+replace provincia_reside = 3 if provincia_vivienda == "CALCA"
+replace provincia_reside = 4 if provincia_vivienda == "CANAS"
+replace provincia_reside = 5 if provincia_vivienda == "CANCHIS"
+replace provincia_reside = 6 if provincia_vivienda == "CHUMBIVILCAS"
+replace provincia_reside = 7 if provincia_vivienda == "CUSCO"
+replace provincia_reside = 8 if provincia_vivienda == "ESPINAR"
+replace provincia_reside = 9 if provincia_vivienda == "LA CONVENCION"
+replace provincia_reside = 10 if provincia_vivienda == "PARURO"
+replace provincia_reside = 11 if provincia_vivienda == "PAUCARTAMBO"
+replace provincia_reside = 12 if provincia_vivienda == "QUISPICANCHI"
+replace provincia_reside = 13 if provincia_vivienda == "URUBAMBA"
+replace provincia_reside = 14 if provincia_reside == . 
+tab provincia_reside
 
 * Convertir la 'fecha de resultado' en el formato que lea la variable
 gen fecha_resultado = mdy(MES,DIA,AÑO)
@@ -278,18 +262,5 @@ save "${data}/data_sinadef.dta", replace
 use "${data}\data_siscovid.dta", clear
 append using "${data}\data_noticovid.dta", force
 append using "${data}\data_sinadef.dta", force
-
-* 5. Tipo de prueba
-
-gen tipo_prueba =.
-replace tipo_prueba = 1 if prueba_molecular==1
-replace tipo_prueba = 2 if prueba_rapida==1
-replace tipo_prueba = 3 if prueba_antigenica==1
-label variable tipo_prueba "Tipo de prueba"
-label define tipo_prueba 1 "Prueba molecular" 2 "Prueba rápida" 3 "Prueba antigenica"
-label values tipo_prueba tipo_prueba tipo_prueba
-tab tipo_prueba
-
-keep if tipo_prueba == 1 | tipo_prueba == 2 | tipo_prueba == 3 | defuncion == 1 
 
 save "${data}\data-covid-unir.dta", replace
