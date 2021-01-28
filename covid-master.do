@@ -29,13 +29,15 @@ do "${regional}\do\data-covid-unir-variables-diario.do"
 * Borrar todas las observaciones menores al primer caso: 13 de marzo
 drop if fecha_resultado < 21987
  
-foreach var of varlist total_positivo total_positivo_molecular total_positivo_rapida total_muestra total_muestra_molecular total_muestra_rapida total_recuperado total_sintomaticos total_defunciones total_inicio total_inicio_molecular total_inicio_rapida total_igm total_igg total_igm_igg total_activos {
+foreach var of varlist total_positivo total_positivo_molecular total_positivo_rapida total_positivo_antigenica total_muestra total_muestra_molecular total_muestra_rapida total_muestra_antigenica total_recuperado total_sintomaticos total_defunciones total_inicio total_inicio_molecular total_inicio_rapida total_inicio_antigenica total_igm total_igg total_igm_igg total_activos {
 replace `var' = `var'[_n-1] if `var' ==.
 }
 
 recode * (.=0)
 
 br 
+
+save "${regional}/data/data-covid-unir-variables-diario.dta", replace
 
 X
 
